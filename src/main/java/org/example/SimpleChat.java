@@ -1,41 +1,29 @@
 package org.example;
 
+import jakarta.annotation.PostConstruct;
 import org.jgroups.*;
 import org.jgroups.util.Util;
+import org.springframework.stereotype.Service;
 
 import java.io.*;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
+@Service
 public class SimpleChat implements Receiver {
     JChannel channel;
-    String user_name=System.getProperty("user.name", "n/a");
-    final List<String> state=new LinkedList<String>();
 
+    private final Map<String, Long> messages = Collections.synchronizedMap(new HashMap<>());
+
+    @PostConstruct
     private void start() throws Exception {
         channel=new JChannel().setReceiver(this);
         channel.connect("ChatCluster");
         channel.getState(null, 10000);
-        eventLoop();
-        channel.close();
+
+        System.out.println("Nodo unido al cluster. Estado sincronizado con " + messages.size() + " elementos.");
+        System.out.println("Historial actual: " + messages);
     }
 
-    private void eventLoop() {
-        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-        while (true) {
-            try {
-                System.out.print("> ");
-                System.out.flush();
-                String line = in.readLine().toLowerCase();
-                if (line.startsWith("quit") || line.startsWith("exit"))
-                    break;
-                line = "[" + user_name + "] " + line;
-                Message msg = new ObjectMessage(null, line);
-                channel.send(msg);
-            } catch (Exception e) {
-            }
-        }
-    }
 
     @Override
     public void viewAccepted(View new_view) {
@@ -44,30 +32,27 @@ public class SimpleChat implements Receiver {
 
     @Override
     public void receive(Message msg) {
-        String line=msg.getSrc() + ": " + msg.getObject();
-        System.out.println(line);
-        synchronized(state) {
-            state.add(line);
+        synchronized(messages) {
+            messages.put(msg.getObject(),  System.currentTimeMillis());
+            System.out.println("Mensaje recibido: " + msg.getObject());
         }
     }
 
     @Override
     public void getState(OutputStream output) throws Exception {
-        synchronized(state) {
-            Util.objectToStream(state, new DataOutputStream(output));
+        synchronized (messages) {
+            Util.objectToStream(messages, new DataOutputStream(output));
         }
     }
 
     @Override
     public void setState(InputStream input) throws Exception {
-        List<String> list;
-        list=(List<String>)Util.objectFromStream(new DataInputStream(input));
-        synchronized(state) {
-            state.clear();
-            state.addAll(list);
+        Map<String, Long> state = (Map<String, Long>) Util.objectFromStream(new DataInputStream(input));
+        synchronized (messages) {
+            messages.clear();
+            messages.putAll(state);
         }
-        System.out.println(list.size() + " messages in chat history):");
-        list.forEach(System.out::println);
+        System.out.println("Estado actualizado desde otro nodo. Total: " + messages.size());
     }
 
     public static void main(String[] args) throws Exception {

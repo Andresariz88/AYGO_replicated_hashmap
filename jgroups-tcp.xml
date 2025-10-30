@@ -1,0 +1,18 @@
+<config xmlns="urn:org:jgroups:config:5.0">
+    <TCP bind_addr="SITE_LOCAL" bind_port="7800"/>
+    <TCPPING
+            initial_hosts="98.81.122.230[7800],54.167.23.182[7800]"
+            port_range="10" />
+    <MERGE3 max_interval="30000" min_interval="10000"/>
+    <FD_SOCK/>
+    <FD_ALL timeout="3000"/>
+    <VERIFY_SUSPECT timeout="1500"/>
+    <BARRIER/>
+    <pbcast.NAKACK2 use_mcast_xmit="false"/>
+    <UNICAST3/>
+    <pbcast.STABLE desired_avg_gossip="50000"/>
+    <pbcast.GMS print_local_addr="true"/>
+    <pbcast.STATE_TRANSFER/>
+    <MFC/>
+    <FRAG2/>
+</config>
